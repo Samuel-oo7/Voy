@@ -2,6 +2,7 @@ package com.voy.backend.controller;
 
 import com.voy.backend.model.User;
 import com.voy.backend.repository.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,29 +20,33 @@ public class UserController {
     private BCryptPasswordEncoder passwordEncoder;
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody User user) {
+
+    public ResponseEntity<?> registerUser(@Valid @RequestBody User user) {
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("Error: Email is already in use!");
         }
 
-        // Encrypt the password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-
-        User savedUser = userRepository.save(user);
-        return ResponseEntity.ok(savedUser);
+        return ResponseEntity.ok(userRepository.save(user));
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody User loginRequest) {
         return userRepository.findByEmail(loginRequest.getEmail())
                 .map(user -> {
-                    // Use matches() to compare plain text with the hash
                     if (passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                         return ResponseEntity.ok(user);
-                    } else {
-                        return ResponseEntity.status(401).body("Error: Invalid password");
                     }
+                    return ResponseEntity.status(401).body("Error: Invalid password");
                 })
                 .orElse(ResponseEntity.status(404).body("Error: User not found"));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserProfile(@PathVariable String id) {
+        return userRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 }
